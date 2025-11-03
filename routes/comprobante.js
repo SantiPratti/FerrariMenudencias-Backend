@@ -7,10 +7,8 @@ const router = express.Router();
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   
-  console.log('📄 Generando comprobante para pedido:', id);
 
   try {
-    // Consultar los datos del pedido con información del cliente
     const [rows] = await pool.query(`
       SELECT 
         p.id_pedido,
@@ -28,21 +26,18 @@ router.get('/:id', async (req, res) => {
 
 
     if (rows.length === 0) {
-      console.log('❌ Pedido no encontrado');
+      console.log('Pedido no encontrado');
       return res.status(404).json({ error: 'Comprobante no encontrado' });
     }
 
     const pedido = rows[0];
 
-    // Configurar headers para enviar el PDF
     res.setHeader('Content-disposition', `attachment; filename=comprobante_${id}.pdf`);
     res.setHeader('Content-type', 'application/pdf');
 
-    // Crear el documento PDF
     const doc = new PDFDocument();
     doc.pipe(res);
 
-    // Agregar contenido
     doc.fontSize(20).text('Ferrari Menudencias', { align: 'center' });
     doc.moveDown();
     doc.fontSize(18).text('Comprobante de Pedido', { align: 'center' });
@@ -62,13 +57,11 @@ router.get('/:id', async (req, res) => {
     doc.moveDown(2);
     doc.fontSize(10).text('¡Gracias por su compra!', { align: 'center' });
 
-    // Finalizar y enviar
     doc.end();
     
-    console.log('✅ PDF generado exitosamente');
 
   } catch (error) {
-    console.error('❌ Error al generar comprobante:', error);
+    console.error('Error al generar comprobante:', error);
     res.status(500).json({ error: 'Error al generar el comprobante', details: error.message });
   }
 });

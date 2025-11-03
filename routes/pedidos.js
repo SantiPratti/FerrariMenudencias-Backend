@@ -2,9 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const router = express.Router();
 
-// =============================
-// Obtener todos los pedidos con sus productos Y TELÉFONO
-// =============================
+
 router.get('/pedidos', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -32,9 +30,7 @@ router.get('/pedidos', async (req, res) => {
   }
 });
 
-// =============================
-// Crear un nuevo pedido CON TELÉFONO
-// =============================
+
 router.post('/pedidos', async (req, res) => {
   try {
     const { id_usuario, productos, total, id_estado, telefono } = req.body;
@@ -43,7 +39,6 @@ router.post('/pedidos', async (req, res) => {
       return res.status(400).json({ error: 'Faltan datos obligatorios' });
     }
 
-    // Crear el pedido con teléfono
     const [pedidoResult] = await pool.query(
       `INSERT INTO Pedidos (id_usuario, fecha_creacion, total, telefono_contacto, id_estado) 
        VALUES (?, NOW(), ?, ?, ?)`,
@@ -52,7 +47,6 @@ router.post('/pedidos', async (req, res) => {
 
     const id_pedido = pedidoResult.insertId;
 
-    // Insertar los productos del pedido
     for (const producto of productos) {
       await pool.query(
         `INSERT INTO Pedido_producto (id_pedido, id_producto, cantidad) VALUES (?, ?, ?)`,
@@ -67,10 +61,6 @@ router.post('/pedidos', async (req, res) => {
   }
 });
 
-// =============================
-// Actualizar el estado o total de un pedido
-// CON ACTUALIZACIÓN AUTOMÁTICA DE STOCK Y REGISTRO DE VENTA
-// =============================
 router.put('/pedidos/:id', async (req, res) => {
   const connection = await pool.getConnection();
   
@@ -80,7 +70,6 @@ router.put('/pedidos/:id', async (req, res) => {
 
     await connection.beginTransaction();
 
-    // Obtener el estado actual del pedido y su total
     const [pedidoActual] = await connection.query(
       `SELECT id_estado, total FROM Pedidos WHERE id_pedido = ?`,
       [id]
@@ -94,23 +83,18 @@ router.put('/pedidos/:id', async (req, res) => {
     const estadoAnterior = pedidoActual[0].id_estado;
     const totalPedido = pedidoActual[0].total;
 
-    // Actualizar el pedido
     await connection.query(
       `UPDATE Pedidos SET id_estado = COALESCE(?, id_estado), total = COALESCE(?, total) WHERE id_pedido = ?`,
       [id_estado, total, id]
     );
 
-    // Si el nuevo estado es "Entregado" (id_estado = 4) y el anterior NO era entregado
     if (id_estado && parseInt(id_estado) === 4 && estadoAnterior !== 4) {
-      // Obtener todos los productos del pedido
       const [productos] = await connection.query(
         `SELECT id_producto, cantidad FROM Pedido_producto WHERE id_pedido = ?`,
         [id]
       );
 
-      // Actualizar el stock de cada producto
       for (const producto of productos) {
-        // Verificar que hay suficiente stock
         const [stockActual] = await connection.query(
           `SELECT cantidad_disponible FROM Stock WHERE id_producto = ?`,
           [producto.id_producto]
@@ -130,42 +114,35 @@ router.put('/pedidos/:id', async (req, res) => {
           });
         }
 
-        // Restar la cantidad del stock
         await connection.query(
           `UPDATE Stock SET cantidad_disponible = cantidad_disponible - ? WHERE id_producto = ?`,
           [producto.cantidad, producto.id_producto]
         );
       }
 
-      // REGISTRAR LA VENTA AUTOMÁTICAMENTE
-      // Verificar si ya existe una venta para este pedido
       const [ventaExistente] = await connection.query(
         `SELECT id_venta FROM Ventas WHERE id_pedido = ?`,
         [id]
       );
 
       if (ventaExistente.length === 0) {
-        // Crear registro de venta (método de pago por defecto: Efectivo = 1)
         await connection.query(
           `INSERT INTO Ventas (fecha_pago, monto, total, id_pedido, id_metodo) 
            VALUES (CURDATE(), ?, ?, ?, ?)`,
           [totalPedido, totalPedido, id, 1]
         );
-        console.log(`✅ Venta registrada automáticamente para pedido ${id}: $${totalPedido}`);
+        console.log(`Venta registrada automáticamente para pedido ${id}: $${totalPedido}`);
       }
 
       console.log(`Stock actualizado para pedido ${id}: ${productos.length} productos descontados`);
     }
 
-    // Si se está cambiando DE "Entregado" a otro estado
     if (id_estado && parseInt(id_estado) !== 4 && estadoAnterior === 4) {
-      // Obtener todos los productos del pedido
       const [productos] = await connection.query(
         `SELECT id_producto, cantidad FROM Pedido_producto WHERE id_pedido = ?`,
         [id]
       );
 
-      // Devolver el stock de cada producto
       for (const producto of productos) {
         await connection.query(
           `UPDATE Stock SET cantidad_disponible = cantidad_disponible + ? WHERE id_producto = ?`,
@@ -173,7 +150,6 @@ router.put('/pedidos/:id', async (req, res) => {
         );
       }
 
-      // ELIMINAR LA VENTA si existe
       await connection.query(
         `DELETE FROM Ventas WHERE id_pedido = ?`,
         [id]
@@ -198,9 +174,6 @@ router.put('/pedidos/:id', async (req, res) => {
   }
 });
 
-// =============================
-// Eliminar un pedido
-// =============================
 router.delete('/pedidos/:id', async (req, res) => {
   const connection = await pool.getConnection();
   
@@ -209,7 +182,6 @@ router.delete('/pedidos/:id', async (req, res) => {
 
     await connection.beginTransaction();
 
-    // Verificar si el pedido está entregado
     const [pedido] = await connection.query(
       `SELECT id_estado FROM Pedidos WHERE id_pedido = ?`,
       [id]
@@ -220,7 +192,6 @@ router.delete('/pedidos/:id', async (req, res) => {
       return res.status(404).json({ error: 'Pedido no encontrado' });
     }
 
-    // Si el pedido estaba entregado (id_estado = 4), devolver el stock
     if (pedido[0].id_estado === 4) {
       const [productos] = await connection.query(
         `SELECT id_producto, cantidad FROM Pedido_producto WHERE id_pedido = ?`,
@@ -234,14 +205,11 @@ router.delete('/pedidos/:id', async (req, res) => {
         );
       }
 
-      // Eliminar la venta asociada
       await connection.query(`DELETE FROM Ventas WHERE id_pedido = ?`, [id]);
     }
 
-    // Eliminar los productos del pedido
     await connection.query(`DELETE FROM Pedido_producto WHERE id_pedido = ?`, [id]);
     
-    // Eliminar el pedido
     await connection.query(`DELETE FROM Pedidos WHERE id_pedido = ?`, [id]);
 
     await connection.commit();

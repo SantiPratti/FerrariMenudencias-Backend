@@ -3,7 +3,6 @@ const pool = require('../db');
 
 const router = express.Router();
 
-// Muestra todos los pedidos con estado de stock
 router.get('/dashboard', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -32,7 +31,6 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
-// Muestra solo los pedidos pendientes con estado de stock
 router.get('/dashboard/pendientes', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -62,7 +60,6 @@ router.get('/dashboard/pendientes', async (req, res) => {
   }
 });
 
-// Ventas totales del día
 router.get('/dashboard/ventas-diarias', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -78,7 +75,6 @@ router.get('/dashboard/ventas-diarias', async (req, res) => {
   }
 });
 
-// Obtener todos los estados disponibles
 router.get('/estados', async (req, res) => {
   try {
     const [rows] = await pool.query(`

@@ -1,9 +1,8 @@
 const express = require('express');
-const pool = require('../db'); // conexión MySQL
+const pool = require('../db'); 
 const router = express.Router();
 
 
-// 📘 GET: obtener todos los productos
 router.get('/stock', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -16,7 +15,6 @@ router.get('/stock', async (req, res) => {
       FROM Stock
     `);
 
-    // calcular estado (opcional)
     const data = rows.map(p => ({
       ...p,
       estado: p.stock_actual <= 0 ? 'Sin stock'
@@ -31,7 +29,6 @@ router.get('/stock', async (req, res) => {
 });
 
 
-// POST: agregar un nuevo producto
 router.post('/stock', async (req, res) => {
   try {
     const { nombre, cantidad_disponible, stock_minimo, precio } = req.body;
@@ -53,7 +50,6 @@ router.post('/stock', async (req, res) => {
 });
 
 
-// PUT: editar un producto
 router.put('/stock/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -73,7 +69,6 @@ router.put('/stock/:id', async (req, res) => {
 });
 
 
-// DELETE: eliminar un producto
 router.delete('/stock/:id', async (req, res) => {
   try {
     const { id } = req.params;
