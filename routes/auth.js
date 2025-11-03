@@ -3,16 +3,16 @@ const pool = require('../db');
 
 const router = express.Router();
 
-// Registro simple
+// Registro simple 
 router.post('/register', async (req, res) => {
-  const { nombre, email, password, id_rol } = req.body;
+  const { nombre, email, password, telefono, id_rol } = req.body;
   try {
     const [existing] = await pool.query('SELECT * FROM Usuarios WHERE email = ?', [email]);
     if (existing.length > 0) return res.status(400).json({ error: 'Usuario ya existe' });
 
     await pool.query(
-      'INSERT INTO Usuarios (nombre, contraseña, email, id_rol) VALUES (?, ?, ?, ?)',
-      [nombre, password, email, id_rol]
+      'INSERT INTO Usuarios (nombre, contraseña, email, telefono, id_rol) VALUES (?, ?, ?, ?, ?)',
+      [nombre, password, email, telefono || null, id_rol]
     );
 
     res.json({ message: 'Usuario registrado con éxito' });
@@ -26,7 +26,10 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    const [users] = await pool.query('SELECT * FROM Usuarios WHERE email = ? AND contraseña = ?', [email, password]);
+    const [users] = await pool.query(
+      'SELECT id_usuario, nombre, email, telefono, id_rol FROM Usuarios WHERE email = ? AND contraseña = ?', 
+      [email, password]
+    );
     if (users.length === 0) return res.status(400).json({ error: 'Usuario o contraseña incorrecta' });
 
     res.json({ message: 'Login exitoso', user: users[0] });
